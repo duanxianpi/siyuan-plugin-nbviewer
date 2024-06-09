@@ -1,6 +1,6 @@
 {
   "name": "siyuan-plugin-nbviewer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A plugin enables people to view Jupyter Notebook in SiYuan.",
   "main": ".src/index.js",
   "scripts": {

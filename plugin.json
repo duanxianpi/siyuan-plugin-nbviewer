@@ -2,7 +2,7 @@
   "name": "siyuan-plugin-nbviewer",
   "author": "Xianpi Duan",
   "url": "https://github.com/duanxianpi/siyuan-plugin-nbviewer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minAppVersion": "3.0.0",
   "backends": [
     "windows",
