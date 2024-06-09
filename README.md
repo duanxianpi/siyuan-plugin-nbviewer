@@ -7,6 +7,7 @@ The SiYuan Jupyter Notebook Viewer is a plugin for SiYuan that enables users to 
 ## Features
 
 - **Notebook Viewing**: Easily view the content of Jupyter Notebooks, including Markdown, code cells, and outputs within SiYuan.
+- **Cross-Platform Support**: Works on Windows, macOS, and Linux.
 
 ## Usage
 
@@ -16,6 +17,8 @@ After installation and activation, follow these steps to view a Jupyter Notebook
 
 1. Drag and drop a Jupyter Notebook file into SiYuan as an attachment 
 2. Click on the attachment to open the file.
+
+**NOTE**: For local assets, inserting attachments with hard links supports file cloud synchronization and cross-device access.
 
 ### File URL
 
