@@ -1,0 +1,156 @@
+{#
+
+DO NOT USE THIS AS A BASE,
+IF YOU ARE COPY AND PASTING THIS FILE
+YOU ARE PROBABLY DOING THINGS INCORRECTLY.
+
+Null template, does nothing except defining a basic structure
+To layout the different blocks of a notebook.
+
+Subtemplates can override blocks to define their custom representation.
+
+If one of the block you do overwrite is not a leaf block, consider
+calling super.
+
+{%- block nonLeafBlock -%}
+    #add stuff at beginning
+    {{ super() }}
+    #add stuff at end
+{%- endblock nonLeafBlock -%}
+
+consider calling super even if it is a leaf block, we might insert more blocks later.
+
+#}
+{# 兼容 Nunjuck 奇怪Bug#}
+{# https://github.com/mozilla/nunjucks/issues/928 workaround #}
+{% macro data_priority(output) %}
+    {%- for type, _data in output['data'] -%}
+        {%- if type == 'text/plain' -%}
+            {%- block data_text -%}
+            {%- endblock -%}
+        {%- elif type == 'application/pdf' -%}
+            {%- block data_pdf -%}
+            {%- endblock -%}
+        {%- elif type == 'image/svg+xml' -%}
+            {%- block data_svg -%}
+            {%- endblock -%}
+        {%- elif type == 'image/png' -%}
+            {%- block data_png -%}
+            {%- endblock -%}
+        {%- elif type == 'text/html' -%}
+            {%- block data_html -%}
+            {%- endblock -%}
+        {%- elif type == 'text/markdown' -%}
+            {%- block data_markdown -%}
+            {%- endblock -%}
+        {%- elif type == 'image/jpeg' -%}
+            {%- block data_jpg -%}
+            {%- endblock -%}
+        {%- elif type == 'text/latex' -%}
+            {%- block data_latex -%}
+            {%- endblock -%}
+        {%- elif type == 'application/javascript' -%}
+            {%- block data_javascript -%}
+            {%- endblock -%}
+        {%- elif type == 'application/vnd.jupyter.widget-view+json' -%}
+            {%- block data_widget_view -%}
+            {%- endblock -%}
+        {%- else -%}
+            {%- block data_other -%}
+            {%- endblock -%}
+        {%- endif -%}
+    {%- endfor -%}
+{% endmacro %}
+
+
+{%- block header -%}
+{%- endblock header -%}
+{%- block body -%}
+    {%- block body_header -%}
+    {%- endblock body_header -%}
+    {%- block body_loop -%}
+        {%- for cell in nb.cells -%}
+            {%- block any_cell   -%}
+                {%- if cell.cell_type == 'code'-%}
+                    {%- if resources.global_content_filter.include_code -%}
+                    {%- block codecell -%}
+                        {%- if resources.global_content_filter.include_input and not cell.get("transient",{}).get("remove_source", false) -%}
+                            {%- block input_group -%}
+                            {%- if resources.global_content_filter.include_input_prompt -%}
+                                {%- block in_prompt -%}{%- endblock in_prompt -%}
+                            {%- endif -%}
+                                {%- block input -%}{%- endblock input -%}
+                            {%- endblock input_group -%}
+                        {%- endif -%}
+                        {%- if cell.outputs and resources.global_content_filter.include_output -%}
+                            {%- block output_group -%}
+                                {%- if resources.global_content_filter.include_output_prompt -%}
+                                    {%- block output_prompt -%}{%- endblock output_prompt -%}
+                                {%- endif -%}
+                                {%- block outputs -%}
+                                    {%- for output in cell.outputs -%}
+                                        {%- block output -%}
+                                            {%- if output.output_type == 'execute_result' -%}
+                                                {%- block execute_result   -%}
+                                                    {# 兼容 Nunjuck 奇怪Bug#}
+                                                    {{ data_priority(output) }}
+                                                {%- endblock execute_result -%}
+                                            {%- elif output.output_type == 'stream' -%}
+                                                {%- block stream   -%}
+                                                    {%- if output.name == 'stdout' -%}
+                                                        {%- block stream_stdout   -%}
+                                                        {%- endblock stream_stdout -%}
+                                                    {%- elif output.name == 'stderr' -%}
+                                                        {%- block stream_stderr   -%}
+                                                        {%- endblock stream_stderr -%}
+                                                    {%- elif output.name == 'stdin' -%}
+                                                        {%- block stream_stdin   -%}
+                                                        {%- endblock stream_stdin -%}
+                                                    {%- endif -%}
+                                                {%- endblock stream -%}
+                                            {%- elif output.output_type == 'display_data' -%}
+                                                {%- block display_data -%}
+                                                    {# 兼容 Nunjuck 奇怪Bug#}
+                                                    {{ data_priority(output) }}
+                                                {%- endblock display_data -%}
+                                            {%- elif output.output_type == 'error' -%}
+                                                {%- block error   -%}
+                                                {%- for line in output.traceback -%}
+                                                    {%- block traceback_line   -%}{%- endblock traceback_line -%}
+                                                {%- endfor -%}
+                                                {%- endblock error -%}
+                                            {%- endif -%}
+                                        {%- endblock output -%}
+                                    {%- endfor -%}
+                                {%- endblock outputs -%}
+                            {%- endblock output_group -%}
+                        {%- endif -%}
+                    {%- endblock codecell -%}
+                    {%- endif -%}
+                {%- elif cell.cell_type in ['markdown'] -%}
+                    {%- if resources.global_content_filter.include_markdown and not cell.get("transient",{}).get("remove_source", false) -%}
+                        {%- block markdowncell  -%} {%- endblock markdowncell -%}
+                    {%- endif -%}
+                {%- elif cell.cell_type in ['raw'] -%}
+                    {%- if resources.global_content_filter.include_raw and not cell.get("transient",{}).get("remove_source", false) -%}
+                        {%- block rawcell   -%}
+                        {%- if cell.metadata.get('raw_mimetype', '').lower() in resources.get('raw_mimetypes', ['']) -%}
+                        {{ cell.source }}
+                        {%- endif -%}
+                        {%- endblock rawcell -%}
+                    {%- endif -%}
+                {%- else -%}
+                    {%- if resources.global_content_filter.include_unknown and not cell.get("transient",{}).get("remove_source", false) -%}
+                        {%- block unknowncell  -%}
+                        {%- endblock unknowncell -%}
+                    {%- endif -%}
+                {%- endif -%}
+            {%- endblock any_cell -%}
+        {%- endfor -%}
+    {%- endblock body_loop -%}
+    {%- block body_footer -%}
+    {%- endblock body_footer -%}
+{%- endblock body -%}
+
+{%- block footer -%}
+{%- endblock footer -%}

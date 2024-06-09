@@ -9,6 +9,7 @@ import {
     getFrontend,
     getBackend,
     IModel,
+    ICustomModel,
     Setting,
     fetchPost,
     Protyle,
@@ -18,224 +19,91 @@ import {
     openMobileFileById,
     lockScreen,
     ICard,
-    ICardData
+    ICardData,
+    Lute
 } from "siyuan";
 import "./index.scss";
+import { addScript } from "./render/utils";
+import * as nunjucks from "nunjucks";
 
-const STORAGE_NAME = "menu-config";
-const TAB_TYPE = "custom_tab";
-const DOCK_TYPE = "dock_tab";
+
+const TAB_TYPE = "nbviewer_tab";
 
 export default class PluginSample extends Plugin {
 
-    private customTab: () => IModel;
-    private isMobile: boolean;
-    private blockIconEventBindThis = this.blockIconEvent.bind(this);
+    private nunjucksEnv: nunjucks.Environment;
+    private lute: Lute;
 
     onload() {
-        this.data[STORAGE_NAME] = {readonlyText: "Readonly"};
+        this.addIcons(`<symbol id="iconNb" viewBox="0 0 32 32" style="scale:2">
+            <g fill="#EF6C00"><path d="M 29.3246 5.1749 v 24.1497 H 5.1749 V 5.1749 h 24.1497 m 2.3522 -2.3522 H 2.8227 v 28.6973 h 28.6973 l 0.1568 -28.6973 z M 25.8746 25.8746 l -8.4681 -6.7431 l -8.7817 6.7431 v -17.2498 h 17.2498 z"></path></g>
+            </symbol>`);
+        // Initialize the nunjucks environment
+        this.nunjucksEnv = new nunjucks.Environment(new nunjucks.WebLoader(`plugins/${this.name}/templates/siyuanmd`, {useCache:true}), { autoescape: false });
+        
+        nunjucks.installJinjaCompat();
 
-        const frontEnd = getFrontend();
-        this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
-        // 图标的制作参见帮助文档
-        this.addIcons(`<symbol id="iconFace" viewBox="0 0 32 32">
-<path d="M13.667 17.333c0 0.92-0.747 1.667-1.667 1.667s-1.667-0.747-1.667-1.667 0.747-1.667 1.667-1.667 1.667 0.747 1.667 1.667zM20 15.667c-0.92 0-1.667 0.747-1.667 1.667s0.747 1.667 1.667 1.667 1.667-0.747 1.667-1.667-0.747-1.667-1.667-1.667zM29.333 16c0 7.36-5.973 13.333-13.333 13.333s-13.333-5.973-13.333-13.333 5.973-13.333 13.333-13.333 13.333 5.973 13.333 13.333zM14.213 5.493c1.867 3.093 5.253 5.173 9.12 5.173 0.613 0 1.213-0.067 1.787-0.16-1.867-3.093-5.253-5.173-9.12-5.173-0.613 0-1.213 0.067-1.787 0.16zM5.893 12.627c2.28-1.293 4.040-3.4 4.88-5.92-2.28 1.293-4.040 3.4-4.88 5.92zM26.667 16c0-1.040-0.16-2.040-0.44-2.987-0.933 0.2-1.893 0.32-2.893 0.32-4.173 0-7.893-1.92-10.347-4.92-1.4 3.413-4.187 6.093-7.653 7.4 0.013 0.053 0 0.12 0 0.187 0 5.88 4.787 10.667 10.667 10.667s10.667-4.787 10.667-10.667z"></path>
-</symbol>
-<symbol id="iconSaving" viewBox="0 0 32 32">
-<path d="M20 13.333c0-0.733 0.6-1.333 1.333-1.333s1.333 0.6 1.333 1.333c0 0.733-0.6 1.333-1.333 1.333s-1.333-0.6-1.333-1.333zM10.667 12h6.667v-2.667h-6.667v2.667zM29.333 10v9.293l-3.76 1.253-2.24 7.453h-7.333v-2.667h-2.667v2.667h-7.333c0 0-3.333-11.28-3.333-15.333s3.28-7.333 7.333-7.333h6.667c1.213-1.613 3.147-2.667 5.333-2.667 1.107 0 2 0.893 2 2 0 0.28-0.053 0.533-0.16 0.773-0.187 0.453-0.347 0.973-0.427 1.533l3.027 3.027h2.893zM26.667 12.667h-1.333l-4.667-4.667c0-0.867 0.12-1.72 0.347-2.547-1.293 0.333-2.347 1.293-2.787 2.547h-8.227c-2.573 0-4.667 2.093-4.667 4.667 0 2.507 1.627 8.867 2.68 12.667h2.653v-2.667h8v2.667h2.68l2.067-6.867 3.253-1.093v-4.707z"></path>
-</symbol>`);
-
-        const topBarElement = this.addTopBar({
-            icon: "iconFace",
-            title: this.i18n.addTopBarIcon,
-            position: "right",
-            callback: () => {
-                if (this.isMobile) {
-                    this.addMenu();
-                } else {
-                    let rect = topBarElement.getBoundingClientRect();
-                    // 如果被隐藏，则使用更多按钮
-                    if (rect.width === 0) {
-                        rect = document.querySelector("#barMore").getBoundingClientRect();
-                    }
-                    if (rect.width === 0) {
-                        rect = document.querySelector("#barPlugins").getBoundingClientRect();
-                    }
-                    this.addMenu(rect);
-                }
-            }
+        this.nunjucksEnv.addFilter('multiline', function(strs) {
+            // if strs is not an array, return it as is
+            if (!Array.isArray(strs)) return strs;
+            
+            return strs.join('');
         });
 
-        const statusIconTemp = document.createElement("template");
-        statusIconTemp.innerHTML = `<div class="toolbar__item ariaLabel" aria-label="Remove plugin-sample Data">
-    <svg>
-        <use xlink:href="#iconTrashcan"></use>
-    </svg>
-</div>`;
-        statusIconTemp.content.firstElementChild.addEventListener("click", () => {
-            confirm("⚠️", this.i18n.confirmRemove.replace("${name}", this.name), () => {
-                this.removeData(STORAGE_NAME).then(() => {
-                    this.data[STORAGE_NAME] = {readonlyText: "Readonly"};
-                    showMessage(`[${this.name}]: ${this.i18n.removedData}`);
-                });
-            });
+        this.nunjucksEnv.addFilter('strip_ansi', function(source) {
+            const ansiRegex = /\x1b\[\d*?[@-~]/g; // 适用于 JavaScript 的简化版 ANSI 正则表达式
+            return source.replace(ansiRegex, "");
         });
 
-        this.addStatusBar({
-            element: statusIconTemp.content.firstElementChild as HTMLElement,
+        this.nunjucksEnv.addFilter('path2url', function(path) {
+            // Split the path by the system's file separator, which in web contexts is typically "/"
+            const parts = path.split('/');
+            // Encode each part of the path to ensure it's valid for a URL and join them back with "/"
+            return parts.map((part: string | number | boolean) => encodeURIComponent(part)).join('/');
         });
 
-        this.customTab = this.addTab({
-            type: TAB_TYPE,
-            init() {
-                this.element.innerHTML = `<div class="plugin-sample__custom-tab">${this.data.text}</div>`;
-            },
-            beforeDestroy() {
-                console.log("before destroy tab:", TAB_TYPE);
-            },
-            destroy() {
-                console.log("destroy tab:", TAB_TYPE);
-            }
+        this.nunjucksEnv.addFilter('rstrip_newline', function(str) {
+            return str.replace(/\n$/, "");
         });
 
-        this.addCommand({
-            langKey: "showDialog",
-            hotkey: "⇧⌘O",
-            callback: () => {
-                this.showDialog();
-            },
+        this.nunjucksEnv.addFilter('log', function(obj) {
+            console.log(obj);
         });
 
-        this.addCommand({
-            langKey: "getTab",
-            hotkey: "⇧⌘M",
-            globalCallback: () => {
-                console.log(this.getOpenedTab());
-            },
-        });
-        this.addDock({
-            config: {
-                position: "LeftBottom",
-                size: {width: 200, height: 0},
-                icon: "iconSaving",
-                title: "Custom Dock",
-                hotkey: "⌥⌘W",
-            },
-            data: {
-                text: "This is my custom dock"
-            },
-            type: DOCK_TYPE,
-            resize() {
-                console.log(DOCK_TYPE + " resize");
-            },
-            update() {
-                console.log(DOCK_TYPE + " update");
-            },
-            init: (dock) => {
-                if (this.isMobile) {
-                    dock.element.innerHTML = `<div class="toolbar toolbar--border toolbar--dark">
-    <svg class="toolbar__icon"><use xlink:href="#iconEmoji"></use></svg>
-        <div class="toolbar__text">Custom Dock</div>
-    </div>
-    <div class="fn__flex-1 plugin-sample__custom-dock">
-        ${dock.data.text}
-    </div>
-</div>`;
-                } else {
-                    dock.element.innerHTML = `<div class="fn__flex-1 fn__flex-column">
-    <div class="block__icons">
-        <div class="block__logo">
-            <svg class="block__logoicon"><use xlink:href="#iconEmoji"></use></svg>Custom Dock
-        </div>
-        <span class="fn__flex-1 fn__space"></span>
-        <span data-type="min" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="Min ${adaptHotkey("⌘W")}"><svg><use xlink:href="#iconMin"></use></svg></span>
-    </div>
-    <div class="fn__flex-1 plugin-sample__custom-dock">
-        ${dock.data.text}
-    </div>
-</div>`;
-                }
-            },
-            destroy() {
-                console.log("destroy dock:", DOCK_TYPE);
-            }
-        });
+        // Initialize the Lute parser
+        this.lute = window.Lute.New();
+        // @ts-ignore
+        this.lute.SetInlineMathAllowDigitAfterOpenMarker(true)
+        // @ts-ignore
+        this.lute.SetSuperBlock(true)
+        // @ts-ignore
+        this.lute.SetIndentCodeBlock(true)
+        // @ts-ignore
+        this.lute.SetCodeSyntaxHighlight(true)
+        // @ts-ignore
+        this.lute.SetCodeSyntaxHighlightDetectLang(true)
+        // @ts-ignore
+        this.lute.SetProtyleMarkNetImg(false)
+        // @ts-ignore
+        this.lute.__internal_object__.RenderOptions.AutoSpace = true
+        // @ts-ignore
+        this.lute.__internal_object__.RenderOptions.DataImage = true
+        // @ts-ignore
+        this.lute.__internal_object__.RenderOptions.FixTermTypo = true
+        // @ts-ignore
+        this.lute.__internal_object__.RenderOptions.ProtyleContenteditable = false
+        // @ts-ignore
+        this.lute.__internal_object__.RenderOptions.CodeSyntaxHighlightLineNum = true
+        
+        // Add the Protyle methods to the window object
+        addScript(`/stage/build/export/protyle-method.js?${Constants.SIYUAN_VERSION}`, "protyleExportMethod");
 
-        const textareaElement = document.createElement("textarea");
-        this.setting = new Setting({
-            confirmCallback: () => {
-                this.saveData(STORAGE_NAME, {readonlyText: textareaElement.value});
-            }
-        });
-        this.setting.addItem({
-            title: "Readonly text",
-            direction: "row",
-            description: "Open plugin url in browser",
-            createActionElement: () => {
-                textareaElement.className = "b3-text-field fn__block";
-                textareaElement.placeholder = "Readonly text in the menu";
-                textareaElement.value = this.data[STORAGE_NAME].readonlyText;
-                return textareaElement;
-            },
-        });
-        const btnaElement = document.createElement("button");
-        btnaElement.className = "b3-button b3-button--outline fn__flex-center fn__size200";
-        btnaElement.textContent = "Open";
-        btnaElement.addEventListener("click", () => {
-            window.open("https://github.com/siyuan-note/plugin-sample");
-        });
-        this.setting.addItem({
-            title: "Open plugin url",
-            description: "Open plugin url in browser",
-            actionElement: btnaElement,
-        });
-
-        this.protyleSlash = [{
-            filter: ["insert emoji 😊", "插入表情 😊", "crbqwx"],
-            html: `<div class="b3-list-item__first"><span class="b3-list-item__text">${this.i18n.insertEmoji}</span><span class="b3-list-item__meta">😊</span></div>`,
-            id: "insertEmoji",
-            callback(protyle: Protyle) {
-                protyle.insert("😊");
-            }
-        }];
-
-        this.protyleOptions = {
-            toolbar: ["block-ref",
-                "a",
-                "|",
-                "text",
-                "strong",
-                "em",
-                "u",
-                "s",
-                "mark",
-                "sup",
-                "sub",
-                "clear",
-                "|",
-                "code",
-                "kbd",
-                "tag",
-                "inline-math",
-                "inline-memo",
-                "|",
-                {
-                    name: "insert-smail-emoji",
-                    icon: "iconEmoji",
-                    hotkey: "⇧⌘I",
-                    tipPosition: "n",
-                    tip: this.i18n.insertEmoji,
-                    click(protyle: Protyle) {
-                        protyle.insert("😊");
-                    }
-                }],
-        };
-
-        console.log(this.i18n.helloPlugin);
+        // Add a global click event listener to open the notebook viewer
+        globalThis.addEventListener("click", this.openNbEventListener, true);
+        
     }
 
     onLayoutReady() {
-        this.loadData(STORAGE_NAME);
         console.log(`frontend: ${getFrontend()}; backend: ${getBackend()}`);
     }
 
@@ -247,551 +115,204 @@ export default class PluginSample extends Plugin {
         console.log("uninstall");
     }
 
-    async updateCards(options: ICardData) {
-        options.cards.sort((a: ICard, b: ICard) => {
-            if (a.blockID < b.blockID) {
-                return -1;
+    // Event listener to click on the notebook link
+    private readonly openNbEventListener = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.getAttribute("data-type") === "a" && target.getAttribute("data-href").endsWith(".ipynb")) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const nbId = window.Lute.NewNodeID();
+            let linkAddress = window.Lute.EscapeHTMLStr(target.getAttribute("data-href"));
+            
+            if (linkAddress.startsWith("nbviewer")){
+                linkAddress = linkAddress.slice(11); 
             }
-            if (a.blockID > b.blockID) {
-                return 1;
+
+            this.prepareNb(linkAddress).then(({notebookJson, nbId, nbName}) => {
+                this.openNbViewTab(notebookJson, nbId, nbName);
+            });
+        }
+    };
+
+    private readonly fetchNotebook = async (url: string) => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return 0;
-        });
-        return options;
+            const notebookJson = await response.json();
+            return notebookJson;
+        } catch (error) {
+            console.error('Error fetching the notebook:', error);
+        }
     }
 
-    /* 自定义设置
-    openSetting() {
-        const dialog = new Dialog({
-            title: this.name,
-            content: `<div class="b3-dialog__content"><textarea class="b3-text-field fn__block" placeholder="readonly text in the menu"></textarea></div>
-<div class="b3-dialog__action">
-    <button class="b3-button b3-button--cancel">${this.i18n.cancel}</button><div class="fn__space"></div>
-    <button class="b3-button b3-button--text">${this.i18n.save}</button>
-</div>`,
-            width: this.isMobile ? "92vw" : "520px",
-        });
-        const inputElement = dialog.element.querySelector("textarea");
-        inputElement.value = this.data[STORAGE_NAME].readonlyText;
-        const btnsElement = dialog.element.querySelectorAll(".b3-button");
-        dialog.bindInput(inputElement, () => {
-            (btnsElement[1] as HTMLButtonElement).click();
-        });
-        inputElement.focus();
-        btnsElement[0].addEventListener("click", () => {
-            dialog.destroy();
-        });
-        btnsElement[1].addEventListener("click", () => {
-            this.saveData(STORAGE_NAME, {readonlyText: inputElement.value});
-            dialog.destroy();
-        });
-    }
-    */
+    // Get the Json of the notebook
+    private readonly prepareNb = async (linkAddress: string) => {
+        try {
+            const nbName = decodeURIComponent(linkAddress.split("/").pop());
+            const nbId = window.Lute.NewNodeID();
+            const notebookJson = await this.fetchNotebook(linkAddress);
+            
+            // Convert the notebook to the latest version if it's in version 3
+            if (notebookJson.nbformat === 3) {
+                const convertResponse = await fetch("/api/convert/pandoc", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        "dir": `${nbId}`,
+                        "args": ["--to", "ipynb", `${linkAddress}`, "-o", `${nbName}`]
+                    })
+                });
+    
+                if (!convertResponse.ok) {
+                    throw new Error(`HTTP error! status: ${convertResponse.status}`);
+                }
+    
+                const data = await convertResponse.json();
+                const newLinkAddress = `${data.data["path"]}/${nbName}`;
+    
+                const fileResponse = await fetch("/api/file/getFile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({"path": newLinkAddress})
+                });
+    
+                if (!fileResponse.ok) {
+                    throw new Error(`HTTP error! status: ${fileResponse.status}`);
+                }
+    
+                const fileData = await fileResponse.json();
+                return { notebookJson: fileData, nbId, nbName };
+    
+            } else {
+                return { notebookJson, nbId, nbName };
+            }
+        } catch (error) {
+            console.error('Error in processing the notebook:', error);
+        }
+    };
+    
+    // Open the notebook in a new tab
+    private readonly openNbViewTab = (notebookJson:any, nbId: string, nbName:string) => {
 
-    private eventBusPaste(event: any) {
-        // 如果需异步处理请调用 preventDefault， 否则会进行默认处理
-        event.preventDefault();
-        // 如果使用了 preventDefault，必须调用 resolve，否则程序会卡死
-        event.detail.resolve({
-            textPlain: event.detail.textPlain.trim(),
-        });
-    }
+            const input = {nb: notebookJson, resources: {
+                "global_content_filter": {
+                    "include_code": true,
+                    "include_markdown": true,
+                    "include_raw": true,
+                    "include_unknown": true,
+                    "include_input": true,
+                    "include_output": true,
+                    "include_output_stdin": true,
+                    "include_input_prompt": true,
+                    "include_output_prompt": true,
+                    "no_prompt": false,
+                }
+                }};
+                
+                console.log("Rendering the notebook:", input);
 
-    private eventBusLog({detail}: any) {
-        console.log(detail);
-    }
+            this.nunjucksEnv.render("siyuan.md.njk", input, (err, res) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
 
-    private blockIconEvent({detail}: any) {
-        detail.menu.addItem({
-            iconHTML: "",
-            label: this.i18n.removeSpace,
-            click: () => {
-                const doOperations: IOperation[] = [];
-                detail.blockElements.forEach((item: HTMLElement) => {
-                    const editElement = item.querySelector('[contenteditable="true"]');
-                    if (editElement) {
-                        editElement.textContent = editElement.textContent.replace(/ /g, "");
-                        doOperations.push({
-                            id: item.dataset.nodeId,
-                            data: item.outerHTML,
-                            action: "update"
-                        });
+                const nbHTML = this.lute.Md2BlockDOM(res);
+                const tabHTML = `<div class="${this.name}__custom-tab"><div class="${this.name}__custom-viewer protyle-wysiwyg protyle-wysiwyg--attr">${nbHTML}</div></div>`;
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(tabHTML, 'text/html');
+                const tabElement = doc.body.firstChild as HTMLElement;
+
+
+                // Remove all protyle-attr elements
+                const protyleAttrs = Array.from(tabElement.querySelectorAll('.protyle-attr'));
+                protyleAttrs.forEach((protyleAttr) => {
+                    protyleAttr.remove();
+                });
+
+                // Add the necessary classes to the elements
+                const codeElements = Array.from(tabElement.querySelectorAll('[data-type="NodeSuperBlock"]'));
+                codeElements.forEach((codeElement) => {
+                    codeElement.className = `${this.name}__codeblock`;
+                    const isOutCodeBlock = codeElement.querySelector('[data-type="NodeCodeBlock"]').firstElementChild.firstElementChild.textContent === "output";
+                    const isErrCodeBlock = codeElement.querySelector('[data-type="NodeCodeBlock"]').firstElementChild.firstElementChild.textContent === "error";
+
+                    if (isOutCodeBlock) {
+
+                        codeElement.querySelector('[data-type="NodeParagraph"]')?.classList.add(`${this.name}__jupyter-out-prompt`);
+                        codeElement.querySelector('[data-type="NodeCodeBlock"]').removeAttribute("class");
+                        
+                        const content = codeElement.querySelector('div.hljs');
+                        content.className = `p ${this.name}__jupyter-out`;
+
+                        // Remove the hover menu
+                        codeElement.querySelector('div.protyle-action').remove();                        
+                    
+                    } else if (isErrCodeBlock) {
+                        codeElement.querySelector('[data-type="NodeParagraph"]').classList.add(`${this.name}__jupyter-err-prompt`);
+                        codeElement.querySelector('[data-type="NodeCodeBlock"]').removeAttribute("class");
+                        const content = codeElement.querySelector('div.hljs');
+                        content.className = `p ${this.name}__jupyter-err`;
+                        // Remove the hover menu
+                        codeElement.querySelector('div.protyle-action').remove();
+                    } else {
+                        codeElement.querySelector('[data-type="NodeParagraph"]').classList.add(`${this.name}__jupyter-in-prompt`);
+
+                    }
+                        
+                });
+
+                // Render the notebook in SiYuan Style
+                //@ts-ignore
+                window.Protyle.highlightRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.mathRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.abcRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.htmlRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.plantumlRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.mermaidRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.flowchartRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.chartRender(tabElement, `${Constants.PROTYLE_CDN}`);    
+                //@ts-ignore
+                window.Protyle.mindmapRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                //@ts-ignore
+                window.Protyle.graphvizRender(tabElement, `${Constants.PROTYLE_CDN}`);
+                
+                // Rigister the tab
+                this.addTab({
+                    type: TAB_TYPE+"_"+nbName,
+                    init() {
+                        this.element.append(this.data.tabElement);
+                    },
+                    beforeDestroy() {
+                        console.log("before destroy tab:", TAB_TYPE);
+                    },
+                    destroy() {
+
+                        console.log("destroy tab:", TAB_TYPE);
                     }
                 });
-                detail.protyle.getInstance().transaction(doOperations);
-            }
-        });
-    }
 
-    private showDialog() {
-        const dialog = new Dialog({
-            title: `SiYuan ${Constants.SIYUAN_VERSION}`,
-            content: `<div class="b3-dialog__content">
-    <div>appId:</div>
-    <div class="fn__hr"></div>
-    <div class="plugin-sample__time">${this.app.appId}</div>
-    <div class="fn__hr"></div>
-    <div class="fn__hr"></div>
-    <div>API demo:</div>
-    <div class="fn__hr"></div>
-    <div class="plugin-sample__time">System current time: <span id="time"></span></div>
-    <div class="fn__hr"></div>
-    <div class="fn__hr"></div>
-    <div>Protyle demo:</div>
-    <div class="fn__hr"></div>
-    <div id="protyle" style="height: 360px;"></div>
-</div>`,
-            width: this.isMobile ? "92vw" : "560px",
-            height: "540px",
-        });
-        new Protyle(this.app, dialog.element.querySelector("#protyle"), {
-            blockId: "20200812220555-lj3enxa",
-        });
-        fetchPost("/api/system/currentTime", {}, (response) => {
-            dialog.element.querySelector("#time").innerHTML = new Date(response.data).toString();
-        });
-    }
+                openTab({
+                    app: this.app,
+                    custom: {
+                        icon: "iconNb",
+                        title: `${nbName}`,
+                        data: {tabElement: tabElement},
+                        id: this.name + TAB_TYPE + "_" + nbName,
+                    },
+                });
 
-    private addMenu(rect?: DOMRect) {
-        const menu = new Menu("topBarSample", () => {
-            console.log(this.i18n.byeMenu);
-        });
-        menu.addItem({
-            icon: "iconInfo",
-            label: "Dialog(open help first)",
-            accelerator: this.commands[0].customHotkey,
-            click: () => {
-                this.showDialog();
-            }
-        });
-        if (!this.isMobile) {
-            menu.addItem({
-                icon: "iconFace",
-                label: "Open Custom Tab",
-                click: () => {
-                    const tab = openTab({
-                        app: this.app,
-                        custom: {
-                            icon: "iconFace",
-                            title: "Custom Tab",
-                            data: {
-                                text: "This is my custom tab",
-                            },
-                            id: this.name + TAB_TYPE
-                        },
-                    });
-                    console.log(tab);
-                }
             });
-            menu.addItem({
-                icon: "iconImage",
-                label: "Open Asset Tab(open help first)",
-                click: () => {
-                    const tab = openTab({
-                        app: this.app,
-                        asset: {
-                            path: "assets/paragraph-20210512165953-ag1nib4.svg"
-                        }
-                    });
-                    console.log(tab);
-                }
-            });
-            menu.addItem({
-                icon: "iconFile",
-                label: "Open Doc Tab(open help first)",
-                click: async () => {
-                    const tab = await openTab({
-                        app: this.app,
-                        doc: {
-                            id: "20200812220555-lj3enxa",
-                        }
-                    });
-                    console.log(tab);
-                }
-            });
-            menu.addItem({
-                icon: "iconSearch",
-                label: "Open Search Tab",
-                click: () => {
-                    const tab = openTab({
-                        app: this.app,
-                        search: {
-                            k: "SiYuan"
-                        }
-                    });
-                    console.log(tab);
-                }
-            });
-            menu.addItem({
-                icon: "iconRiffCard",
-                label: "Open Card Tab",
-                click: () => {
-                    const tab = openTab({
-                        app: this.app,
-                        card: {
-                            type: "all"
-                        }
-                    });
-                    console.log(tab);
-                }
-            });
-            menu.addItem({
-                icon: "iconLayout",
-                label: "Open Float Layer(open help first)",
-                click: () => {
-                    this.addFloatLayer({
-                        ids: ["20210428212840-8rqwn5o", "20201225220955-l154bn4"],
-                        defIds: ["20230415111858-vgohvf3", "20200813131152-0wk5akh"],
-                        x: window.innerWidth - 768 - 120,
-                        y: 32
-                    });
-                }
-            });
-            menu.addItem({
-                icon: "iconOpenWindow",
-                label: "Open Doc Window(open help first)",
-                click: () => {
-                    openWindow({
-                        doc: {id: "20200812220555-lj3enxa"}
-                    });
-                }
-            });
-        } else {
-            menu.addItem({
-                icon: "iconFile",
-                label: "Open Doc(open help first)",
-                click: () => {
-                    openMobileFileById(this.app, "20200812220555-lj3enxa");
-                }
-            });
-        }
-        menu.addItem({
-            icon: "iconLock",
-            label: "Lockscreen",
-            click: () => {
-                lockScreen(this.app);
-            }
-        });
-        menu.addItem({
-            icon: "iconScrollHoriz",
-            label: "Event Bus",
-            type: "submenu",
-            submenu: [{
-                icon: "iconSelect",
-                label: "On ws-main",
-                click: () => {
-                    this.eventBus.on("ws-main", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off ws-main",
-                click: () => {
-                    this.eventBus.off("ws-main", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On click-blockicon",
-                click: () => {
-                    this.eventBus.on("click-blockicon", this.blockIconEventBindThis);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off click-blockicon",
-                click: () => {
-                    this.eventBus.off("click-blockicon", this.blockIconEventBindThis);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On click-pdf",
-                click: () => {
-                    this.eventBus.on("click-pdf", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off click-pdf",
-                click: () => {
-                    this.eventBus.off("click-pdf", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On click-editorcontent",
-                click: () => {
-                    this.eventBus.on("click-editorcontent", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off click-editorcontent",
-                click: () => {
-                    this.eventBus.off("click-editorcontent", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On click-editortitleicon",
-                click: () => {
-                    this.eventBus.on("click-editortitleicon", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off click-editortitleicon",
-                click: () => {
-                    this.eventBus.off("click-editortitleicon", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On click-flashcard-action",
-                click: () => {
-                    this.eventBus.on("click-flashcard-action", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off click-flashcard-action",
-                click: () => {
-                    this.eventBus.off("click-flashcard-action", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-noneditableblock",
-                click: () => {
-                    this.eventBus.on("open-noneditableblock", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-noneditableblock",
-                click: () => {
-                    this.eventBus.off("open-noneditableblock", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On loaded-protyle-static",
-                click: () => {
-                    this.eventBus.on("loaded-protyle-static", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off loaded-protyle-static",
-                click: () => {
-                    this.eventBus.off("loaded-protyle-static", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On loaded-protyle-dynamic",
-                click: () => {
-                    this.eventBus.on("loaded-protyle-dynamic", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off loaded-protyle-dynamic",
-                click: () => {
-                    this.eventBus.off("loaded-protyle-dynamic", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On switch-protyle",
-                click: () => {
-                    this.eventBus.on("switch-protyle", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off switch-protyle",
-                click: () => {
-                    this.eventBus.off("switch-protyle", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On destroy-protyle",
-                click: () => {
-                    this.eventBus.on("destroy-protyle", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off destroy-protyle",
-                click: () => {
-                    this.eventBus.off("destroy-protyle", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-doctree",
-                click: () => {
-                    this.eventBus.on("open-menu-doctree", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-doctree",
-                click: () => {
-                    this.eventBus.off("open-menu-doctree", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-blockref",
-                click: () => {
-                    this.eventBus.on("open-menu-blockref", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-blockref",
-                click: () => {
-                    this.eventBus.off("open-menu-blockref", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-fileannotationref",
-                click: () => {
-                    this.eventBus.on("open-menu-fileannotationref", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-fileannotationref",
-                click: () => {
-                    this.eventBus.off("open-menu-fileannotationref", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-tag",
-                click: () => {
-                    this.eventBus.on("open-menu-tag", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-tag",
-                click: () => {
-                    this.eventBus.off("open-menu-tag", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-link",
-                click: () => {
-                    this.eventBus.on("open-menu-link", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-link",
-                click: () => {
-                    this.eventBus.off("open-menu-link", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-image",
-                click: () => {
-                    this.eventBus.on("open-menu-image", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-image",
-                click: () => {
-                    this.eventBus.off("open-menu-image", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-av",
-                click: () => {
-                    this.eventBus.on("open-menu-av", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-av",
-                click: () => {
-                    this.eventBus.off("open-menu-av", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-content",
-                click: () => {
-                    this.eventBus.on("open-menu-content", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-content",
-                click: () => {
-                    this.eventBus.off("open-menu-content", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-breadcrumbmore",
-                click: () => {
-                    this.eventBus.on("open-menu-breadcrumbmore", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-breadcrumbmore",
-                click: () => {
-                    this.eventBus.off("open-menu-breadcrumbmore", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-menu-inbox",
-                click: () => {
-                    this.eventBus.on("open-menu-inbox", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-menu-inbox",
-                click: () => {
-                    this.eventBus.off("open-menu-inbox", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On input-search",
-                click: () => {
-                    this.eventBus.on("input-search", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off input-search",
-                click: () => {
-                    this.eventBus.off("input-search", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On paste",
-                click: () => {
-                    this.eventBus.on("paste", this.eventBusPaste);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off paste",
-                click: () => {
-                    this.eventBus.off("paste", this.eventBusPaste);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-siyuan-url-plugin",
-                click: () => {
-                    this.eventBus.on("open-siyuan-url-plugin", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-siyuan-url-plugin",
-                click: () => {
-                    this.eventBus.off("open-siyuan-url-plugin", this.eventBusLog);
-                }
-            }, {
-                icon: "iconSelect",
-                label: "On open-siyuan-url-block",
-                click: () => {
-                    this.eventBus.on("open-siyuan-url-block", this.eventBusLog);
-                }
-            }, {
-                icon: "iconClose",
-                label: "Off open-siyuan-url-block",
-                click: () => {
-                    this.eventBus.off("open-siyuan-url-block", this.eventBusLog);
-                }
-            }]
-        });
-        menu.addSeparator();
-        menu.addItem({
-            icon: "iconSparkles",
-            label: this.data[STORAGE_NAME].readonlyText || "Readonly",
-            type: "readonly",
-        });
-        if (this.isMobile) {
-            menu.fullscreen();
-        } else {
-            menu.open({
-                x: rect.right,
-                y: rect.bottom,
-                isLeft: true,
-            });
-        }
     }
 }

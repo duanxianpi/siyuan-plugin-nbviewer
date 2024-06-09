@@ -1,9 +1,9 @@
 {
-  "name": "plugin-sample",
-  "author": "Vanessa",
-  "url": "https://github.com/siyuan-note/plugin-sample",
-  "version": "0.3.5",
-  "minAppVersion": "3.0.12",
+  "name": "siyuan-plugin-nbviewer",
+  "author": "Xianpi Duan",
+  "url": "https://github.com/duanxianpi/siyuan-plugin-nbviewer",
+  "version": "0.1.0",
+  "minAppVersion": "3.0.0",
   "backends": [
     "windows",
     "linux",
@@ -19,12 +19,12 @@
     "desktop-window"
   ],
   "displayName": {
-    "default": "Plugin Sample",
-    "zh_CN": "插件示例"
+    "default": "Jupyter Notebook Viewer",
+    "zh_CN": "Jupyter Notebook 查看器"
   },
   "description": {
-    "default": "This is a plugin sample",
-    "zh_CN": "这是一个插件示例"
+    "default": "A plugin enables people to view Jupyter Notebook in SiYuan.",
+    "zh_CN": "可以在思源中轻松查看 Jupyter Notebook"
   },
   "readme": {
     "default": "README.md",
@@ -35,7 +35,7 @@
     "patreon": "",
     "github": "",
     "custom": [
-      "https://ld246.com/sponsor"
+      "https://buymeacoffee.com/duanxianpi"
     ]
   },
   "keywords": [
