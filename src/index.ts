@@ -29,7 +29,7 @@ import * as nunjucks from "nunjucks";
 
 const TAB_TYPE = "nbviewer_tab";
 
-export default class PluginSample extends Plugin {
+export default class PluginNbviewer extends Plugin {
 
     private nunjucksEnv: nunjucks.Environment;
     private lute: Lute;
@@ -64,6 +64,14 @@ export default class PluginSample extends Plugin {
 
         this.nunjucksEnv.addFilter('rstrip_newline', function(str) {
             return str.replace(/\n$/, "");
+        });
+
+        this.nunjucksEnv.addFilter('null2space', function(str) {
+            if (str === null) {
+                return " ";
+            } else {
+                return str;
+            }
         });
 
         this.nunjucksEnv.addFilter('log', function(obj) {
@@ -128,10 +136,13 @@ export default class PluginSample extends Plugin {
             if (linkAddress.startsWith("nbviewer")){
                 linkAddress = linkAddress.slice(11); 
             }
-
-            this.prepareNb(linkAddress).then(({notebookJson, nbId, nbName}) => {
-                this.openNbViewTab(notebookJson, nbId, nbName);
-            });
+            try {
+                this.prepareNb(linkAddress).then(({notebookJson, nbId, nbName}) => {
+                    this.openNbViewTab(notebookJson, nbId, nbName);
+                });
+            } catch (error) {
+                console.error('Error in processing the notebook:', error);
+            }
         }
     };
 
@@ -187,6 +198,7 @@ export default class PluginSample extends Plugin {
                 return { notebookJson: fileData, nbId, nbName };
     
             } else {
+
                 return { notebookJson, nbId, nbName };
             }
         } catch (error) {

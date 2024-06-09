@@ -36,7 +36,9 @@ After installation and activation, follow these steps to view a Jupyter Notebook
 
 ## Compatibility
 
-This plugin is compatible with Jupyter Notebooks version 3.0 and above.
+- This plugin is compatible with Jupyter Notebooks Format 4.0 and above.
+- For Jupiter Notebook Format 3.x versions, the plugin will automatically convert them to 4.x versions using Pandoc (the source file will not be modified).
+- Mobile devices do not support Jupiter Notebook Format 3.x versions.
 
 ## Contributing
 
@@ -51,6 +53,8 @@ This plugin is released under the [MIT License](LICENSE).
 For support, questions, or more information, please visit [our GitHub issues page](/issues).
 
 ## Sponsor
+
+If you like this plugin, you can support me in the following ways:
 
 ### Buy me a coffee & PayPal
 <div style="display:flex; align-items: center; flex-direction:;">

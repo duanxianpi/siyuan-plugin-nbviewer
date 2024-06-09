@@ -11,7 +11,7 @@
 
 {% endraw %}
     {%- if cell.execution_count is defined -%}
-        In [{{ cell.execution_count | replace(None, " ") }}]:
+        In [{{ cell.execution_count | null2space }}]:
     {%- else -%}
         In [ ]:
     {% endif %}
@@ -19,10 +19,10 @@
 ``````````
 {%- if 'magics_language' in cell.metadata  -%}
     {{ cell.metadata.magics_language}}
-{%- elif 'name' in nb.metadata.get('language_info', {}) -%}
-    {{ nb.metadata.language_info.name }}
 {%- elif 'language' in cell.metadata -%}
     {{ cell.metadata.language }}
+{%- elif 'name' in nb.metadata.get('language_info', {}) -%}
+    {{ nb.metadata.language_info.name }}
 {%- endif %}
 {{ cell.source | multiline }}
 ``````````
@@ -39,7 +39,7 @@
 
 {% endraw %}
     {%- if cell.execution_count is defined -%}
-        Out [{{ cell.execution_count | replace(None, " ") }}]:
+        Out [{{ cell.execution_count | null2space }}]:
     {%- else -%}
         Out [ ]:
     {% endif %}
@@ -55,7 +55,7 @@
 
 {% endraw %}
     {%- if cell.execution_count is defined -%}
-        Out [{{ cell.execution_count | replace(None, " ") }}]:
+        Out [{{ cell.execution_count | null2space }}]:
     {%- else -%}
         Out [ ]:
     {% endif %}

@@ -16,7 +16,7 @@ SiYuan Jupyter Notebook 查看器是一个适用于 SiYuan 的插件，使用户
 1. 将 Jupyter Notebook 文件拖放到 SiYuan 中作为附件
 2. 点击附件打开文件。
 
-**注意**： 对于本地 assets, 插入附件时用硬链接的方式可以支持文件云同步和跨设备访问。
+**推荐**：插入附件时用硬链接的方式可以支持**文件同步修改**和**跨设备**访问。
 
 ### 文件 URL
 
@@ -34,7 +34,9 @@ SiYuan Jupyter Notebook 查看器是一个适用于 SiYuan 的插件，使用户
 
 ## 兼容性
 
-该插件与 Jupyter Notebooks 3.0 及以上版本兼容。
+- 该插件兼容 Jupyter Notebooks Format 4.0 及以上版本。
+- 对于 Jupiter Notebook Format 3.x 版本，插件会用 Pandoc 自动将其转换为 4.x 版本（源文件不会被修改）
+- 移动端不支持 Jupiter Notebook Format 3.x 版本。
 
 ## 贡献
 
@@ -49,6 +51,8 @@ SiYuan Jupyter Notebook 查看器是一个适用于 SiYuan 的插件，使用户
 如需支持、问题或更多信息，请访问 [我们的 GitHub 问题页面](/issues)。
 
 ## 赞助
+
+如果您喜欢这个插件，可以通过以下方式支持我：
 
 ### 请我喝咖啡 & PayPal
 <div style="display:flex; align-items: center; flex-direction:;">
