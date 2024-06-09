@@ -23,7 +23,7 @@ import {
     Lute
 } from "siyuan";
 import "./index.scss";
-import { addScript } from "./render/utils";
+import { addScript } from "./utils";
 import * as nunjucks from "nunjucks";
 
 
