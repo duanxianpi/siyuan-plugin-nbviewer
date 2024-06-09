@@ -49,6 +49,7 @@ export default class PluginNbviewer extends Plugin {
             
             return strs.join('');
         });
+        
 
         this.nunjucksEnv.addFilter('strip_ansi', function(source) {
             const ansiRegex = /\x1b\[\d*?[@-~]/g; // 适用于 JavaScript 的简化版 ANSI 正则表达式
@@ -136,6 +137,11 @@ export default class PluginNbviewer extends Plugin {
             if (linkAddress.startsWith("nbviewer")){
                 linkAddress = linkAddress.slice(11); 
             }
+
+            if (linkAddress.startsWith("file://")) {
+                linkAddress = linkAddress.replace(/\\/g, '/');
+            }
+
             try {
                 this.prepareNb(linkAddress).then(({notebookJson, nbId, nbName}) => {
                     this.openNbViewTab(notebookJson, nbId, nbName);
@@ -163,6 +169,14 @@ export default class PluginNbviewer extends Plugin {
     private readonly prepareNb = async (linkAddress: string) => {
         try {
             const nbName = decodeURIComponent(linkAddress.split("/").pop());
+            const normalizedPath = linkAddress.endsWith('/') ? linkAddress.slice(0, -1) : linkAddress;    
+            const lastSlashIndex = normalizedPath.lastIndexOf('/');
+            const parentPath = lastSlashIndex > 0 ? normalizedPath.substring(0, lastSlashIndex) : '';
+
+            // @ts-ignore
+            this.lute.SetLinkBase(parentPath);
+            console.log("LinkBase:", parentPath);
+
             const nbId = window.Lute.NewNodeID();
             const notebookJson = await this.fetchNotebook(linkAddress);
             
@@ -231,6 +245,8 @@ export default class PluginNbviewer extends Plugin {
                     console.error(err);
                     return;
                 }
+
+                console.log("Rendered the notebook:", {res});
 
                 const nbHTML = this.lute.Md2BlockDOM(res);
                 const tabHTML = `<div class="${this.name}__custom-tab"><div class="${this.name}__custom-viewer protyle-wysiwyg protyle-wysiwyg--attr">${nbHTML}</div></div>`;
